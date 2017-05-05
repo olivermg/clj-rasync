@@ -26,7 +26,7 @@
     false))
 
 (defrecord WebsocketChannelServer [on-connect
-                                   recv-chs send-chs server state]
+                                   channels server state]
 
   cmp/Lifecycle
 
@@ -36,10 +36,10 @@
                       (let [r (rand)
                             rch (chan)
                             sch (chan)]
-                        (swap! recv-chs #(conj % rch))
-                        (swap! send-chs #(conj % sch))
                         (s/with-channel req channel
                           (println "client connected via channel" channel)
+                          (swap! channels #(assoc % {:recv-ch rch
+                                                     :send-ch sch}))
                           (s/on-receive channel
                                         (fn [data]
                                           (println "srv got message:" data)
@@ -73,8 +73,7 @@
 
 (defn websocket-channel-server [on-connect]
   (map->WebsocketChannelServer {:on-connect on-connect
-                                :recv-chs (atom [])
-                                :send-chs (atom [])
+                                :channels (atom {})
                                 :state (atom :stopped)}))
 
 (defrecord WebsocketChannelClient [recv-ch send-ch url
