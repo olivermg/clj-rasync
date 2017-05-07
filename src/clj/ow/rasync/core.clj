@@ -26,7 +26,7 @@
     false))
 
 (defrecord WebsocketChannelServer [on-connect
-                                   channels server state]
+                                   server state]
 
   cmp/Lifecycle
 
@@ -34,12 +34,10 @@
     (if (not= @state :started)
       (let [handler (fn [req]
                       (let [r (rand)
-                            rch (chan)
-                            sch (chan)]
+                            rch (a/chan)
+                            sch (a/chan)]
                         (s/with-channel req channel
                           (println "client connected via channel" channel)
-                          (swap! channels #(assoc % {:recv-ch rch
-                                                     :send-ch sch}))
                           (s/on-receive channel
                                         (fn [data]
                                           (println "srv got message:" data)
@@ -47,15 +45,18 @@
                           (s/on-close channel
                                       (fn [status]
                                         (println "srv close" status)
-                                        (when (not= @state :stopped) ;; only when close comes from client
-                                          (a/put! sch ::stop))))
+                                        ;;;(when (not= @state :stopped)) ;; only when close comes from client
+                                        ;;;(a/put! sch ::stop)
+                                        (a/close! rch)
+                                        (a/close! sch)))
                           (a/go-loop [msg (a/<! sch)]
                             (if-not (or (nil? msg)
-                                        (= msg ::stop))
+                                        #_(= msg ::stop))
                               (do (println "srv send message:" msg r)
                                   (s/send! channel msg)
                                   (recur (a/<! sch)))
-                              (println "server stopped listening on send-ch"))))))
+                              (println "server stopped listening on send-ch")))
+                          (on-connect rch sch))))
             _ (reset! state :started)
             server (s/run-server handler {:port 8897})]
         (println "started server")
@@ -65,13 +66,14 @@
   (stop [this]
     (if (not= @state :stopped)
       (do (reset! state :stopped)
-          (a/put! sch ::stop)
+          #_(a/put! sch ::stop)
           (server :timeout 20000)
           (println "stopped server")
           (assoc this :server nil))
       this)))
 
 (defn websocket-channel-server [on-connect]
+  {:pre [(fn? on-connect)]}
   (map->WebsocketChannelServer {:on-connect on-connect
                                 :channels (atom {})
                                 :state (atom :stopped)}))
@@ -150,7 +152,13 @@
 
 (comment
 
-  (def s1 (websocket-channel-server))
+  (def s1 (websocket-channel-server (fn [recv-ch send-ch]
+                                      (println "X new client connection")
+                                      (a/go-loop [msg (a/<! recv-ch)]
+                                        (when-not (nil? msg)
+                                          (println "X server got messsage" msg)
+                                          (a/>! send-ch msg)
+                                          (recur (a/<! recv-ch)))))))
   (def c1 (websocket-channel-client "ws://localhost:8897/ws"))
   (def c2 (websocket-channel-client "ws://localhost:8897/ws"))
 
@@ -159,13 +167,13 @@
   (def c2 (cmp/start c2))
 
   (a/put! (:send-ch c1) "cmsg1")
-  (a/take! (:recv-ch s1) println)
-  (a/put! (:send-ch s1) "smsg1")
+  #_(a/take! (:recv-ch s1) println)
+  #_(a/put! (:send-ch s1) "smsg1")
   (a/take! (:recv-ch c1) println)
 
   (a/put! (:send-ch c2) "cmsg2")
-  (a/take! (:recv-ch s1) println)
-  (a/put! (:send-ch s1) "smsg2")
+  #_(a/take! (:recv-ch s1) println)
+  #_(a/put! (:send-ch s1) "smsg2")
   (a/take! (:recv-ch c2) println)
 
   (def c2 (cmp/stop c2))
