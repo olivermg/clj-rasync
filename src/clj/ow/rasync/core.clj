@@ -3,7 +3,8 @@
             [com.stuartsierra.component :as cmp]
             #_[clojure.core.async.impl.protocols :as p]
             [org.httpkit.server :as s]
-            [http.async.client :as c])
+            [http.async.client :as c]
+            [clojure.edn :as edn])
   #_(:import [clojure.lang IDeref]))
 
 #_(defn- box [v]
@@ -40,8 +41,9 @@
                           (println "client connected via channel" channel)
                           (s/on-receive channel
                                         (fn [data]
-                                          (println "srv got message:" data)
-                                          (a/put! rch data)))
+                                          (let [data (edn/read-string data)]
+                                            (println "srv got message:" data)
+                                            (a/put! rch data))))
                           (s/on-close channel
                                       (fn [status]
                                         (println "srv close" status)
@@ -52,9 +54,10 @@
                           (a/go-loop [msg (a/<! sch)]
                             (if-not (or (nil? msg)
                                         #_(= msg ::stop))
-                              (do (println "srv send message:" msg r)
-                                  (s/send! channel msg)
-                                  (recur (a/<! sch)))
+                              (let [msg (pr-str msg)]
+                                (println "srv send message:" msg r)
+                                (s/send! channel msg)
+                                (recur (a/<! sch)))
                               (println "server stopped listening on send-ch")))
                           (on-connect rch sch))))
             _ (reset! state :started)
@@ -86,8 +89,9 @@
   (start [this]
     (if (not= @state :started)
       (let [handler (fn [ws msg]
-                      (println "client got message:" msg)
-                      (a/put! recv-ch msg))
+                      (let [msg (edn/read-string msg)]
+                        (println "client got message:" msg)
+                        (a/put! recv-ch msg)))
             onclose (fn [ws code reason]
                       (println "ON CLOSE" code reason)
                       (when (not= @state :stopped)
@@ -122,9 +126,10 @@
               ::stop (println "client stopped listening on send-ch" r)
               ::reconnect (do (connect!)
                               (recur (a/<! send-ch)))
-              (do (println "client send message:" msg r)
-                  (c/send @ws :text msg)
-                  (recur (a/<! send-ch))))))
+              (let [msg (pr-str msg)]
+                (println "client send message:" msg r)
+                (c/send @ws :text msg)
+                (recur (a/<! send-ch))))))
         (println "started client")
         this)
       this))
@@ -166,7 +171,7 @@
   (def c1 (cmp/start c1))
   (def c2 (cmp/start c2))
 
-  (a/put! (:send-ch c1) "cmsg1")
+  (a/put! (:send-ch c1) {:msg :cmsg1})
   #_(a/take! (:recv-ch s1) println)
   #_(a/put! (:send-ch s1) "smsg1")
   (a/take! (:recv-ch c1) println)
