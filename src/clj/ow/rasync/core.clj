@@ -146,9 +146,9 @@
           this)
       this)))
 
-(defn websocket-channel-client [url]
-  (map->WebsocketChannelClient {:recv-ch (a/chan)
-                                :send-ch (a/chan)
+(defn websocket-channel-client [recv-ch send-ch url]
+  (map->WebsocketChannelClient {:recv-ch recv-ch
+                                :send-ch send-ch
                                 :url url
                                 :client (atom nil)
                                 :ws (atom nil)
@@ -164,8 +164,8 @@
                                           (println "X server got messsage" msg)
                                           (a/>! send-ch msg)
                                           (recur (a/<! recv-ch)))))))
-  (def c1 (websocket-channel-client "ws://localhost:8897/ws"))
-  (def c2 (websocket-channel-client "ws://localhost:8897/ws"))
+  (def c1 (websocket-channel-client (a/chan) (a/chan) "ws://localhost:8897/ws"))
+  (def c2 (websocket-channel-client (a/chan) (a/chan) "ws://localhost:8897/ws"))
 
   (def s1 (cmp/start s1))
   (def c1 (cmp/start c1))
