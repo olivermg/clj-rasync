@@ -26,7 +26,7 @@
   (closed? [chan]
     false))
 
-(defrecord WebsocketChannelServer [on-connect
+(defrecord WebsocketChannelServer [on-connect port
                                    server state]
 
   cmp/Lifecycle
@@ -61,7 +61,7 @@
                               (println "server stopped listening on send-ch")))
                           (on-connect rch sch))))
             _ (reset! state :started)
-            server (s/run-server handler {:port 8897})]
+            server (s/run-server handler {:port port})]
         (println "started server")
         (assoc this :server server))
       this))
@@ -75,9 +75,10 @@
           (assoc this :server nil))
       this)))
 
-(defn websocket-channel-server [on-connect]
+(defn websocket-channel-server [on-connect & {:keys [port]}]
   {:pre [(fn? on-connect)]}
   (map->WebsocketChannelServer {:on-connect on-connect
+                                :port (or port 8899)
                                 :channels (atom {})
                                 :state (atom :stopped)}))
 
