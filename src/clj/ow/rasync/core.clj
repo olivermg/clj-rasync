@@ -4,7 +4,8 @@
             #_[clojure.core.async.impl.protocols :as p]
             [org.httpkit.server :as s]
             [http.async.client :as c]
-            [clojure.edn :as edn])
+            [clojure.edn :as edn]
+            [ow.rasync.config :refer [config]])
   #_(:import [clojure.lang IDeref]))
 
 #_(defn- box [v]
