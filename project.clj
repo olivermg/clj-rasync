@@ -20,4 +20,10 @@
 
   :target-path "target/%s"
 
+  :profiles {:repl {:repl-options {:init-ns user}}
+
+             :dev {:source-paths ["dev/src"]
+                   :resource-paths ["dev/resources"]
+                   :dependencies [[integrant/repl "0.2.0"]]}}
+
   )
