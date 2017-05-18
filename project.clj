@@ -6,8 +6,8 @@
 
   :dependencies [[org.clojure/clojure "1.8.0"]
                  [org.clojure/core.async "0.3.442"]
-                 [com.stuartsierra/component "0.3.2"]
-                 [integrant "0.4.0"]
+                 #_[com.stuartsierra/component "0.3.2"]
+                 #_[integrant "0.4.0"]
                  [http-kit "2.2.0"]
                  [http.async.client "1.2.0"]]
 
@@ -24,6 +24,6 @@
 
              :dev {:source-paths ["dev/src"]
                    :resource-paths ["dev/resources"]
-                   :dependencies [[integrant/repl "0.2.0"]]}}
+                   :dependencies [#_[integrant/repl "0.2.0"]]}}
 
   )
